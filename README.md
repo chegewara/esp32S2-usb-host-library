@@ -62,38 +62,66 @@ get descriptor 1: 8704
 [ 14406][I][mouse.ino:26] hid_pipe_cb(): 0/0/0
 [ 14406][I][mouse.ino:27] hid_pipe_cb(): 0
 
-[ 14410][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219307
-[ 14417][I][mousepipe.cpp:8] inData(): EP: 0x01
-[ 14429][I][mouse.ino:24] hid_pipe_cb(): 1
-[ 14430][I][mouse.ino:25] hid_pipe_cb(): 0
-[ 14430][I][mouse.ino:26] hid_pipe_cb(): 13/160/249
-[ 14434][I][mouse.ino:27] hid_pipe_cb(): 0
+[  3017][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219307
+[  3024][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 10200][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 10200][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 1
+[ 10200][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 10205][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
 
-[ 14438][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
-[ 14444][I][mousepipe.cpp:8] inData(): EP: 0x01
-[ 14453][I][mouse.ino:24] hid_pipe_cb(): 1
-[ 14454][I][mouse.ino:25] hid_pipe_cb(): 0
-[ 14456][I][mouse.ino:26] hid_pipe_cb(): 5/128/253
-[ 14461][I][mouse.ino:27] hid_pipe_cb(): 0
+[ 10210][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 10217][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 10296][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 10296][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 10296][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 10301][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
 
-[ 14465][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
-[ 14472][I][mousepipe.cpp:8] inData(): EP: 0x01
-[ 14477][I][mouse.ino:24] hid_pipe_cb(): 1
-[ 14480][I][mouse.ino:25] hid_pipe_cb(): 0
-[ 14484][I][mouse.ino:26] hid_pipe_cb(): 9/128/251
-[ 14488][I][mouse.ino:27] hid_pipe_cb(): 0
+[ 10306][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 10313][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 12864][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 12864][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 2
+[ 12864][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 12869][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
 
-[ 14492][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
-[ 14499][I][mousepipe.cpp:8] inData(): EP: 0x01
-[ 14509][I][mouse.ino:24] hid_pipe_cb(): 1
-[ 14510][I][mouse.ino:25] hid_pipe_cb(): 0
-[ 14511][I][mouse.ino:26] hid_pipe_cb(): 1/224/255
-[ 14516][I][mouse.ino:27] hid_pipe_cb(): 0
+[ 12874][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 12881][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 13048][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 13048][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 13048][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 13053][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
 
-[ 14520][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
-[ 14527][I][mousepipe.cpp:8] inData(): EP: 0x01
-[ 14533][I][mouse.ino:24] hid_pipe_cb(): 1
-[ 14535][I][mouse.ino:25] hid_pipe_cb(): 0
-[ 14538][I][mouse.ino:26] hid_pipe_cb(): 0/0/0
-[ 14543][I][mouse.ino:27] hid_pipe_cb(): 0
+[ 13058][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 13065][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 14632][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 14633][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 14633][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 14638][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
+
+[ 14643][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 14650][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 14664][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 14665][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 14665][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 48/16/254
+[ 14670][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
+
+[ 14676][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 14683][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 14688][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 14692][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 14697][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 71/96/252
+[ 14703][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
+
+[ 14709][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 14715][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 14720][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 14725][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 14730][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 3/32/0
+[ 14736][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
+
+[ 14741][I][pipe.cpp:241] allocateIRP(): Creating new IRP, free memory: 219315
+[ 14748][I][mousepipe.cpp:8] inData(): EP: 0x01
+[ 14760][I][mouse.ino:24] hid_pipe_cb(): HID REPORT ID: 1
+[ 14761][I][mouse.ino:25] hid_pipe_cb(): Mouse buttons: 0
+[ 14763][I][mouse.ino:26] hid_pipe_cb(): X/Y axes(raw bytes): 0/0/0
+[ 14769][I][mouse.ino:27] hid_pipe_cb(): Mouse wheel: 0
 ```
