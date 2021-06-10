@@ -1,0 +1,1 @@
+# esp32Sx-usb-host-library
