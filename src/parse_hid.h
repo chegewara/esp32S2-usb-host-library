@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 
 #define HIDINPUT(size) (0x80 | size)
 #define HIDOUTPUT(size) (0x90 | size)

@@ -55,6 +55,7 @@ typedef union
         (ctrl_req_ptr)->data.bParityType = (parity);                                       \
         (ctrl_req_ptr)->data.bDataBits = (bits);                                           \
     })
+
 /**
  * @brief Initializer for a GET_LINE_CODING request
  *
@@ -83,12 +84,15 @@ typedef union
         (ctrl_req_ptr)->wLength = (0);                                           \
     })
 
+void usbh_cdc_device_ready();
+
 class USBHostCDC : public USBHostPort
 {
 private:
 public:
+    USBHostCDC() : USBHostPort() {}
     USBHostCDC(uint8_t addr) : USBHostPort(addr) {}
-    void begin(uint8_t *);
+    bool begin(uint8_t *);
     void init();
 
     // ----------- CDC related requests ----------- //
@@ -109,6 +113,7 @@ public:
     void getLineCoding();
 
     // ---------------- IN/OUT data related functions -------------------- //
+    // IDEA add handling INTR
     /**
      * @brief Enqueue INTR in request
      */
@@ -119,19 +124,21 @@ public:
      */
     void sendData(uint8_t *, size_t);
 
+    // OPTIMIZE move to parent class??
     /**
      * @brief Register on data IN callback
      */
-    void onDataIn(usb_host_event_cb_t);
+    void onDataIn(ext_usb_pipe_cb_t);
 
     /**
      * @brief Register on data OUT callback
      */
-    void onDataOut(usb_host_event_cb_t);
+    void onDataOut(ext_usb_pipe_cb_t);
 
+    // OPTIMIZE make them private or protected
     // class related callbacks and pipes
-    usb_host_event_cb_t data_in;
-    usb_host_event_cb_t data_out;
+    ext_usb_pipe_cb_t data_in;
+    ext_usb_pipe_cb_t data_out;
     USBHostPipe *inpipe;
     USBHostPipe *outpipe;
 };

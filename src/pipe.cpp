@@ -1,25 +1,104 @@
 #include <cstring>
 #include "pipe.h"
 #include "usb.h"
+#include "configparse.h"
 
 static void pipe_event_task(void *p)
 {
-    USBHostPipe *ctx = (USBHostPipe *)p;
+    // IDEA pointer passed to task is pipe object the task belongs to
+    USBHostPipe *ctrl_pipe = (USBHostPipe *)p;
 
     pipe_event_msg_t msg;
     while (1)
     {
-        xQueueReceive(ctx->pipeEvtQueue, &msg, portMAX_DELAY);
+        xQueueReceive(ctrl_pipe->pipeEvtQueue, &msg, portMAX_DELAY);
         usb_irp_t *irp = hcd_irp_dequeue(msg.handle);
         if (irp == NULL)
             continue;
 
-        if (ctx && ctx->callback != NULL)
+        usb_ctrl_req_t *ctrl = (usb_ctrl_req_t *)irp->data_buffer;
+        uint8_t* data = irp->data_buffer + sizeof(usb_ctrl_req_t);
+
+        switch (msg.event)
         {
-            ctx->callback(msg, irp, ctx);
+        case HCD_PIPE_EVENT_NONE:
+            break;
+        case HCD_PIPE_EVENT_IRP_DONE:
+        {
+            ESP_LOGD("Pipe: ", "XFER status: %d, num bytes: %d, actual bytes: %d", irp->status, irp->num_bytes, irp->actual_num_bytes);
+            usb_ctrl_req_t *ctrl = (usb_ctrl_req_t *)irp->data_buffer;
+
+            if (ctrl->bRequest == USB_B_REQUEST_GET_DESCRIPTOR)
+            {
+                if (ctrl->wValue == (USB_W_VALUE_DT_DEVICE << 8))
+                {
+                    ctrl_pipe->setDeviceDesc(data);
+                } else if ((ctrl->wValue >> 8) & 0xff)
+                {
+                    char out[irp->actual_num_bytes] = {};
+                    USBHostConfigParser parser;
+                    parser.getString(data, out, irp->actual_num_bytes);
+                    uint8_t str_id = ctrl->wValue & 0x0F;
+                    if (str_id == ctrl_pipe->device_desc.iSerialNumber)
+                    {
+                        ESP_LOGV("", "string iSerialNumber: %d", str_id);
+                        onSerialString(out);
+                    }
+                    else if (str_id == ctrl_pipe->device_desc.iProduct)
+                    {
+                        ESP_LOGV("", "string iProduct: %d", str_id);
+                        onProductString(out);
+                    } else if (str_id == ctrl_pipe->device_desc.iManufacturer)
+                    {
+                        ESP_LOGV("", "string iManufacturer: %d", str_id);
+                        onManufacturerString(out);
+                    }
+                }
+            }
+            else if (ctrl->bRequest == USB_B_REQUEST_GET_CONFIGURATION)
+            {
+                ESP_LOGD("", "get current configuration: %d", irp->data_buffer[8]);
+            }
+            else if (ctrl->bRequest == USB_B_REQUEST_SET_CONFIGURATION)
+            {
+                ESP_LOGD("", "set current configuration: %d", ctrl->wValue);
+                ctrl_pipe->getConfigDescriptor(255);
+            }
+            else if (ctrl->bRequest == USB_B_REQUEST_SET_ADDRESS)
+            {
+                ESP_LOGD("", "address set: %d", ctrl->wValue);
+                ctrl_pipe->updateAddress(ctrl->wValue);
+                ctrl_pipe->setConfiguration(1);
+            }
+            else
+            {
+                ESP_LOG_BUFFER_HEX_LEVEL("Ctrl data", ctrl, sizeof(usb_ctrl_req_t), ESP_LOG_WARN);
+                ESP_LOGD("", "unknown request handled: %d", ctrl->bRequest);
+            }
+
+            break;
+        }
+        case HCD_PIPE_EVENT_ERROR_XFER:
+            ESP_LOGW("", "XFER error: %d", irp->status);
+            ctrl_pipe->reset();
+            break;
+
+        case HCD_PIPE_EVENT_ERROR_STALL:
+            ESP_LOG_BUFFER_HEX_LEVEL("Ctrl data", ctrl, sizeof(usb_ctrl_req_t), ESP_LOG_INFO);
+            ctrl_pipe->reset();
+            break;
+
+        default:
+            ESP_LOGW("", "not handled pipe event: %d", msg.event);
+            break;
         }
 
-        ctx->freeIRP(irp);
+        if (ctrl_pipe && ctrl_pipe->callback != NULL)
+        {
+            ctrl_pipe->callback(msg, irp, ctrl_pipe);
+        }
+
+        ctrl_pipe->freeIRP(irp);
     }
 }
 
@@ -65,7 +144,8 @@ void USBHostPipe::init(usb_desc_ep_t *ep_desc, uint8_t addr)
 {
     // TODO add config parse object to check if it is actually endpoint data
     usb_speed_t port_speed;
-    if(port_hdl == NULL)ESP_LOGE("", "FAILED");
+    if (port_hdl == NULL)
+        ESP_LOGE("", "FAILED");
     if (ESP_OK != hcd_port_get_speed(port_hdl, &port_speed))
     {
         return;
@@ -81,7 +161,7 @@ void USBHostPipe::init(usb_desc_ep_t *ep_desc, uint8_t addr)
     hcd_pipe_config_t config = {
         .callback = pipeCallback,
         .callback_arg = (void *)pipeEvtQueue,
-        .context = (void *)this,
+        .context = this,
         .ep_desc = ep_desc,
         .dev_speed = port_speed,
         .dev_addr = addr,
@@ -201,12 +281,12 @@ void USBHostPipe::setConfiguration(uint8_t cfg)
     }
 }
 
-void USBHostPipe::getConfigDescriptor()
+void USBHostPipe::getConfigDescriptor(size_t len)
 {
-    usb_irp_t *irp = allocateIRP(TRANSFER_DATA_MAX_BYTES);
+    usb_irp_t *irp = allocateIRP(len);
     if (irp == NULL)
         return;
-    USB_CTRL_REQ_INIT_GET_CFG_DESC((usb_ctrl_req_t *)irp->data_buffer, 0, TRANSFER_DATA_MAX_BYTES);
+    USB_CTRL_REQ_INIT_GET_CFG_DESC((usb_ctrl_req_t *)irp->data_buffer, 0, len);
 
     //Enqueue those transfer requests
     esp_err_t err;
@@ -264,20 +344,23 @@ void USBHostPipe::freeIRP(usb_irp_t *irp)
 
 void USBHostPipe::inData(size_t size)
 {
-    ESP_LOGV("", "EP: 0x%02x", USB_DESC_EP_GET_ADDRESS(endpoint));
+    ESP_LOGV("", "EP: 0x%02x", USB_DESC_EP_GET_EP_NUM(&endpoint));
+    if(!USB_DESC_EP_GET_EP_DIR(&endpoint)) return;
     size_t len = endpoint.wMaxPacketSize;
-    usb_irp_t *irp = allocateIRP(size? size:len);
+    usb_irp_t *irp = allocateIRP(size ? size : len);
 
     esp_err_t err;
-    if(ESP_OK != (err = hcd_irp_enqueue(handle, irp))) {
-        ESP_LOGW("", "IN endpoint 0x%02x enqueue err: 0x%x", USB_DESC_EP_GET_ADDRESS(endpoint), err);
+    if (ESP_OK != (err = hcd_irp_enqueue(handle, irp)))
+    {
+        ESP_LOGW("", "IN endpoint 0x%02x enqueue err: 0x%x", USB_DESC_EP_GET_EP_NUM(&endpoint), err);
     }
 }
 
 void USBHostPipe::outData(uint8_t *data, size_t len)
 {
+    ESP_LOGV("", "EP: 0x%02x", USB_DESC_EP_GET_EP_NUM(&endpoint));
+    if(USB_DESC_EP_GET_EP_DIR(&endpoint)) return;
     usb_irp_t *irp = allocateIRP(len);
-    ESP_LOGV("", "EP: 0x%02x", USB_DESC_EP_GET_ADDRESS(endpoint));
     memcpy(irp->data_buffer, data, len);
 
     esp_err_t err;
@@ -291,3 +374,30 @@ hcd_pipe_handle_t USBHostPipe::getHandle()
 {
     return handle;
 }
+
+void USBHostPipe::setDeviceDesc(uint8_t* data)
+{
+    memcpy(&device_desc, data, 18);
+}
+
+void USBHostPipe::getSerialString()
+{
+    getString(device_desc.iSerialNumber);
+}
+
+void USBHostPipe::getProductString()
+{
+    getString(device_desc.iProduct);
+}
+
+void USBHostPipe::getManufacturerString()
+{
+    getString(device_desc.iManufacturer);
+}
+
+
+
+//----------------- WEAK callbacks ---------------//
+USBH_WEAK_CB void onSerialString(char* str){}
+USBH_WEAK_CB void onProductString(char* str){}
+USBH_WEAK_CB void onManufacturerString(char* str){}

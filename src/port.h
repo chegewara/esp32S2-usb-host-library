@@ -18,10 +18,9 @@
 #include "esp_log.h"
 #endif
 
-#define USBH_WEAK_CB __attribute__((weak))
 #define PORT_NUM 1 // we have only 1 port
 
-typedef uint16_t usb_host_even_t;
+typedef uint16_t ext_pipe_event_msg_t;
 
 typedef struct
 {
@@ -38,7 +37,7 @@ typedef void (*port_evt_cb_t)(port_event_msg_t msg, USBHostPort *port);
 /**
  * @brief Pipe events callback for user space
  */
-typedef void (*usb_host_event_cb_t)(usb_host_even_t event, void *data);
+typedef void (*ext_usb_pipe_cb_t)(ext_pipe_event_msg_t event, usb_irp_t *data);
 
 class USBHostPort
 {
@@ -47,6 +46,7 @@ protected:
     hcd_port_handle_t handle;
     // control pipe
     USBHostPipe *ctrlPipe;
+    static bool port_ready;
 
 public:
     uint8_t address = 0;
@@ -58,7 +58,7 @@ public:
     /**
      * @brief Initialize USB host port and create low level port callback task
      */
-    void init(port_evt_cb_t cb);
+    bool init(port_evt_cb_t cb);
 
     /**
      * @brief Call this function when physical connection is detected to properly reset port
@@ -123,7 +123,7 @@ public:
     /**
      * @brief Add control pipe callback for user space
      */
-    void onControlEvent(usb_host_event_cb_t cb);
+    void onControlEvent(ext_usb_pipe_cb_t cb);
 
     /**
      * @brief Get port handle
@@ -134,6 +134,19 @@ public:
     /**
      * @brief cllbacks
      */
-    usb_host_event_cb_t ctrl_callback;
+    ext_usb_pipe_cb_t ctrl_callback;
     port_evt_cb_t _port_cb;
+
+
+    // CTRL pipe calls
+    void getSerialString();
+    void getProductString();
+    void getManufacturerString();
 };
+// TODO add suspend, resume and disable port
+// TODO add port fifo bias function
+// TODO add HCD uninstall and deinit
+// 
+
+
+

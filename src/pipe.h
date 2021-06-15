@@ -13,10 +13,12 @@
 #else
 #include "esp_log.h"
 #endif
-#define TRANSFER_DATA_MAX_BYTES 256 //Just assume that will only IN/OUT 64 bytes for now
-#define USB_DESC_EP_GET_ADDRESS(desc_ptr) ((desc_ptr).bEndpointAddress & 0x7F)
-#define BASE_PIPE_EVENT 0x1000
-#define CDC_BASE_PIPE_EVENT 0x2000
+#define TRANSFER_DATA_MAX_BYTES 255 //Just assume that will only IN/OUT 64 bytes for now
+
+#define BASE_PIPE_EVENT 0x8000
+#define CDC_BASE_PIPE_EVENT 0x1000
+#define HID_BASE_PIPE_EVENT 0x2000
+#define USBH_WEAK_CB __attribute__((weak))
 
 /**
  * @brief Build get string request
@@ -44,6 +46,10 @@ class USBHostPort;
  */
 typedef void (*pipe_cb_t)(pipe_event_msg_t msg, usb_irp_t *irp, USBHostPipe *context);
 
+void onSerialString(char* str);
+void onProductString(char* str);
+void onManufacturerString(char* str);
+
 class USBHostPipe
 {
 protected:
@@ -53,14 +59,17 @@ protected:
     hcd_port_handle_t port_hdl;
     // 
     xTaskHandle taskHandle;
-
 public:
+    // friend void pipe_event_task(void *p);
     // 
     usb_desc_ep_t endpoint;
     // 
     pipe_cb_t callback = nullptr;
     // 
     QueueHandle_t pipeEvtQueue;
+
+    usb_desc_devc_t device_desc;
+
 
     USBHostPipe(hcd_port_handle_t handle = nullptr);
     ~USBHostPipe();
@@ -117,9 +126,6 @@ public:
      */
     hcd_pipe_handle_t getHandle();
 
-    // pipes are IN or OUT, but it is better to have functions in base class
-    // laterr need to add assert if pipe is IN/OUT
-
     /**
      * @brief Send data IN request
      */
@@ -154,10 +160,20 @@ public:
     /**
      * @brief Prepare and enqueue get configuration descriptor request
      */
-    void getConfigDescriptor();
+    void getConfigDescriptor(size_t n = 9);
 
     /**
      * @brief Prepare and enqueue get string by id request
      */
     void getString(uint8_t);
+
+    void setDeviceDesc(uint8_t* data);
+
+    void getSerialString();
+    void getProductString();
+    void getManufacturerString();
 };
+
+// TODO add abort IRP
+
+

@@ -78,10 +78,12 @@ static void port_event_task(void *p)
 }
 
 // ------------------------------------------------ CLASS ---------------------------------------------------
+bool USBHostPort::port_ready = false;
 
 USBHostPort::USBHostPort()
 {
     address = 1;
+    port_evt_queue = xQueueCreate(5, sizeof(port_event_msg_t));
 }
 
 USBHostPort::USBHostPort(uint8_t addr) : address(addr)
@@ -91,8 +93,13 @@ USBHostPort::USBHostPort(uint8_t addr) : address(addr)
 
 USBHostPort::~USBHostPort() {}
 
-void USBHostPort::init(port_evt_cb_t cb)
+bool USBHostPort::init(port_evt_cb_t cb)
 {
+    if (port_ready == true || port_evt_queue == NULL)
+    {
+        return false;
+    }
+    
     hcd_config_t config = {
         .intr_flags = ESP_INTR_FLAG_LEVEL1,
     };
@@ -112,7 +119,7 @@ void USBHostPort::init(port_evt_cb_t cb)
 
             phy_force_conn_state(false, 0); //Force disconnected state on PHY
             if (ESP_OK != powerON())
-                return;
+                return false;
             ESP_LOGI("", "Port is power ON now");
             phy_force_conn_state(true, pdMS_TO_TICKS(10)); //Allow for connected state on PHY
             // return true;
@@ -120,17 +127,19 @@ void USBHostPort::init(port_evt_cb_t cb)
         else
         {
             ESP_LOGE("", "Error to init port: %d!!!", err);
-            return;
+            return false;
         }
     }
     else
     {
         ESP_LOGE("", "Error to install HCD!!!");
-        return;
+        return false;
     }
 
+    port_ready = true;
     xTaskCreate(port_event_task, "port_task", 3 * 1024, this, 16, NULL);
     callback = cb;
+    return true;
 }
 
 bool USBHostPort::connect()
@@ -155,11 +164,10 @@ void USBHostPort::onPortEvent(port_evt_cb_t cb)
     _port_cb = cb;
 }
 
-void USBHostPort::onControlEvent(usb_host_event_cb_t cb)
+void USBHostPort::onControlEvent(ext_usb_pipe_cb_t cb)
 {
     ctrl_callback = cb;
 }
-
 
 hcd_port_handle_t USBHostPort::getHandle()
 {
@@ -201,7 +209,9 @@ esp_err_t USBHostPort::powerON()
 
 void USBHostPort::powerOFF()
 {
-    ESP_LOGD(__func__, "%d", hcd_port_command(handle, HCD_PORT_CMD_POWER_OFF));
+    // FIXME
+    hcd_port_command(handle, HCD_PORT_CMD_POWER_OFF);
+    ESP_LOGD(__func__, "%d", 0);
 }
 
 void USBHostPort::suddenDisconnect()
@@ -237,3 +247,23 @@ void USBHostPort::addCTRLpipe(USBHostPipe *pipe)
     ctrlPipe->updatePort(handle);
     ctrlPipe->init();
 }
+
+/**
+ * Standard control requests
+ */
+void USBHostPort::getSerialString()
+{
+    getCTRLpipe()->getSerialString();
+}
+
+void USBHostPort::getProductString()
+{
+    getCTRLpipe()->getProductString();
+}
+
+void USBHostPort::getManufacturerString()
+{
+    getCTRLpipe()->getManufacturerString();
+}
+
+

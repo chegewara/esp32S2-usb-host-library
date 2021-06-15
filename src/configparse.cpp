@@ -13,56 +13,54 @@
 #include "esp_log.h"
 #include "configparse.h"
 
-#define USB_W_VALUE_DT_HID 0x22
-#define USB_W_VALUE_DT_CS_INTERFACE 0x24
 
-static char *class_to_str(uint8_t cls)
+char *USBHostConfigParser::class_to_str(uint8_t cls)
 {
     switch (cls)
     {
-    case 0x00:
+    case USB_CLASS_PER_INTERFACE:
         return ">ifc";
-    case 0x01:
+    case USB_CLASS_AUDIO:
         return "Audio";
-    case 0x02:
+    case USB_CLASS_COMM:
         return "CDC";
-    case 0x03:
+    case USB_CLASS_HID:
         return "HID";
-    case 0x05:
+    case USB_CLASS_PHYSICAL:
         return "Physical";
-    case 0x06:
+    case USB_CLASS_STILL_IMAGE:
         return "Image";
-    case 0x07:
+    case USB_CLASS_PRINTER:
         return "Printer";
-    case 0x08:
+    case USB_CLASS_MASS_STORAGE:
         return "Mass Storage";
-    case 0x09:
+    case USB_CLASS_HUB:
         return "Hub";
-    case 0x0a:
+    case USB_CLASS_CDC_DATA:
         return "CDC-data";
-    case 0x0b:
+    case USB_CLASS_CSCID:
         return "Smart card";
-    case 0x0d:
+    case USB_CLASS_CONTENT_SEC:
         return "Content security";
-    case 0x0e:
+    case USB_CLASS_VIDEO:
         return "Video";
-    case 0x0f:
+    case USB_CLASS_PERSONAL_HEALTHCARE:
         return "Personal heathcare";
-    case 0x10:
+    case USB_CLASS_AUDIO_VIDEO:
         return "Audio/Vdeo devices";
-    case 0x11:
+    case USB_CLASS_BILLBOARD:
         return "Bilboard";
-    case 0x12:
+    case USB_CLASS_USB_TYPE_C_BRIDGE:
         return "USB-C bridge";
     case 0xdc:
         return "Diagnostic device";
-    case 0xe0:
+    case USB_CLASS_WIRELESS_CONTROLLER:
         return "Wireless controller";
-    case 0xef:
+    case USB_CLASS_MISC:
         return "Miscellaneous";
-    case 0xfe:
+    case USB_CLASS_APP_SPEC:
         return "Application specific";
-    case 0xff:
+    case USB_CLASS_VENDOR_SPEC:
         return "Vendor specific";
 
     default:
@@ -70,16 +68,16 @@ static char *class_to_str(uint8_t cls)
     }
 }
 
-static void utf16_to_utf8(char *in, char *out, uint8_t len)
+void USBHostConfigParser::utf16_to_utf8(uint8_t *in, char *out, uint8_t len)
 {
     for (size_t i = 0; i < len; i++)
     {
-        out[i / 2] = in[i];
-        i++;
+        // FIXME
+        out[i / 2] = in[i++];
     }
 }
 
-static uint8_t *parse_cfg_descriptor(uint8_t *data_buffer, uint8_t **out, uint8_t *_type)
+uint8_t* USBHostConfigParser::parse_cfg_descriptor(uint8_t *data_buffer, uint8_t **out, uint8_t *_type)
 {
     uint8_t offset = 0;
     uint8_t type = *(&data_buffer[0] + offset + 1);
@@ -113,7 +111,7 @@ static uint8_t *parse_cfg_descriptor(uint8_t *data_buffer, uint8_t **out, uint8_
             len = data->bLength;
             offset += len;
             char *str = (char *)calloc(1, len);
-            utf16_to_utf8((char *)&data->val[2], str, len);
+            utf16_to_utf8(&data->val[2], str, len);
             ESP_LOGV("", "strings: %s", str);
             free(str);
             break;
@@ -173,14 +171,6 @@ static uint8_t *parse_cfg_descriptor(uint8_t *data_buffer, uint8_t **out, uint8_
     return (uint8_t *)data_buffer + offset;
 }
 
-USBHostConfigParser::USBHostConfigParser()
-{
-}
-
-USBHostConfigParser::~USBHostConfigParser()
-{
-}
-
 uint8_t* USBHostConfigParser::getInterfaceByClass(uint8_t *data, uint8_t cls)
 {
     uint8_t *ep;
@@ -228,8 +218,9 @@ uint8_t* USBHostConfigParser::getEndpointByDirection(uint8_t *interface, uint8_t
     return NULL;
 }
 
-void USBHostConfigParser::getString()
+void USBHostConfigParser::getString(uint8_t *in, char *out, uint8_t len)
 {
+    return utf16_to_utf8(in, out, len);
 }
 
 

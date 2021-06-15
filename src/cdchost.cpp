@@ -1,23 +1,22 @@
 #include <cstring>
 #include "cdchost.h"
 #include "configparse.h"
-#include "Arduino.h"
 
 /**
- * ADD set of custom USB host events
+ * //IDEA ADD set of custom USB host events
  * add callbacks with custom events in ctrl pipe
  * 
  * 
  * 
  * 
- * 
- * dont change order of callbacks
+ */ 
+ /** dont change order of callbacks
  * port and EPs/pipes local callbacks
  */
 IRAM_ATTR static void ctrl_pipe_cb(pipe_event_msg_t msg, usb_irp_t *irp, USBHostPipe *pipe)
 {
     usb_ctrl_req_t *ctrl = (usb_ctrl_req_t *)irp->data_buffer;
-    usb_host_even_t event = msg.event + BASE_PIPE_EVENT;
+    ext_pipe_event_msg_t event = msg.event + BASE_PIPE_EVENT;
     switch (msg.event)
     {
     case HCD_PIPE_EVENT_NONE:
@@ -35,68 +34,45 @@ IRAM_ATTR static void ctrl_pipe_cb(pipe_event_msg_t msg, usb_irp_t *irp, USBHost
                 if (irp->actual_num_bytes)
                 {
                     USBHostCDC *p = (USBHostCDC *)pipe->port;
-                    p->begin(irp->data_buffer);
+                    if (p->begin(irp->data_buffer))
+                    {
+                        usbh_cdc_device_ready();
+                    }
                 }
             }
         }
         else if (ctrl->bRequest == USB_B_REQUEST_GET_CONFIGURATION)
         {
-            event = BASE_PIPE_EVENT + ctrl->bRequest;
-            ESP_LOGD("", "get current configuration: %d", irp->data_buffer[8]);
         }
         else if (ctrl->bRequest == USB_B_REQUEST_SET_CONFIGURATION)
         {
-            event = BASE_PIPE_EVENT + ctrl->bRequest;
-            ESP_LOGD("", "set current configuration: %d", ctrl->wValue);
-            pipe->getConfigDescriptor();
         }
         else if (ctrl->bRequest == USB_B_REQUEST_SET_ADDRESS)
         {
-            event = BASE_PIPE_EVENT + ctrl->bRequest;
-            ESP_LOGD("", "address set: %d", ctrl->wValue);
-            pipe->updateAddress(ctrl->wValue);
-            pipe->setConfiguration(1);
         }
-        else if (ctrl->bRequestType == SET_VALUE && ctrl->bRequest == SET_LINE_CODING) // set line coding
+        // CDC CLASS specific events
+        else if (ctrl->bRequestType == SET_VALUE && ctrl->bRequest == SET_LINE_CODING)
         {
-            event = BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
+            event = BASE_PIPE_EVENT + CDC_BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
             line_coding_t *data = (line_coding_t *)(irp->data_buffer + sizeof(usb_ctrl_req_t));
             ESP_LOGD("Set line coding", "Bitrate: %d, stop bits: %d, parity: %d, bits: %d",
                      data->dwDTERate, data->bCharFormat, data->bParityType, data->bDataBits);
         }
-        else if (ctrl->bRequestType == GET_VALUE && ctrl->bRequest == GET_LINE_CODING) // get line coding
+        else if (ctrl->bRequestType == GET_VALUE && ctrl->bRequest == GET_LINE_CODING)
         {
-            event = BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
+            event = BASE_PIPE_EVENT + CDC_BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
             line_coding_t *data = (line_coding_t *)(irp->data_buffer + sizeof(usb_ctrl_req_t));
             ESP_LOGD("Get line coding", "Bitrate: %d, stop bits: %d, parity: %d, bits: %d",
                      data->dwDTERate, data->bCharFormat, data->bParityType, data->bDataBits);
         }
-        else if (ctrl->bRequestType == SET_VALUE && ctrl->bRequest == SET_CONTROL_LINE_STATE) // set line coding
+        else if (ctrl->bRequestType == SET_VALUE && ctrl->bRequest == SET_CONTROL_LINE_STATE)
         {
-            event = BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
+            event = BASE_PIPE_EVENT + CDC_BASE_PIPE_EVENT + (ctrl->bRequestType << 4) + ctrl->bRequest;
             ESP_LOGD("Set control line state", "");
-        }
-        else
-        {
-            ESP_LOG_BUFFER_HEX_LEVEL("Ctrl data", ctrl, sizeof(usb_ctrl_req_t), ESP_LOG_WARN);
-            ESP_LOGD("", "unknown request handled");
         }
 
         break;
     }
-    case HCD_PIPE_EVENT_ERROR_XFER:
-        ESP_LOGW("", "XFER error: %d", irp->status);
-        pipe->reset();
-        break;
-
-    case HCD_PIPE_EVENT_ERROR_STALL:
-        ESP_LOG_BUFFER_HEX_LEVEL("Ctrl data", ctrl, sizeof(usb_ctrl_req_t), ESP_LOG_INFO);
-        pipe->reset();
-        break;
-
-    default:
-        ESP_LOGW("", "not handled pipe event: %d", msg.event);
-        break;
     }
 
     if (pipe->port->ctrl_callback != NULL)
@@ -128,7 +104,7 @@ IRAM_ATTR static void port_cb(port_event_msg_t msg, USBHostPort *p)
         break;
     }
     case HCD_PORT_EVENT_SUDDEN_DISCONN:
-        // this is called before event in port.cpp to delete all pipes here to properly recover port later in port.cpp
+        // OPTIMIZE this is called before event in port.cpp to delete all pipes here to properly recover port later in port.cpp
         if (port->inpipe)
             delete (port->inpipe);
         if (port->outpipe)
@@ -205,12 +181,12 @@ void USBHostCDC::init()
 }
 
 // initialize endpoints after getting config descriptor
-void USBHostCDC::begin(uint8_t *irp)
+bool USBHostCDC::begin(uint8_t *irp)
 {
     USBHostConfigParser parser;
-    uint8_t *itf0 = parser.getInterfaceByClass(irp, 0x02);
-    uint8_t *itf1 = parser.getInterfaceByClass(irp, 0x0A);
-    if (itf1)
+    // uint8_t *itf0 = parser.getInterfaceByClass(irp, USB_CLASS_COMM); // TODO add INTR endpoint
+    uint8_t *itf1 = parser.getInterfaceByClass(irp, USB_CLASS_CDC_DATA);
+    if (itf1 != nullptr)
     {
         uint8_t *ep = parser.getEndpointByDirection(itf1, 1);
         if (ep)
@@ -230,10 +206,10 @@ void USBHostCDC::begin(uint8_t *irp)
             outpipe->port = this;
         }
 
-        setControlLine(1, 1);
-        setLineCoding(115200, 0, 0, 5);
-        inpipe->inData();
+        if (inpipe != nullptr && outpipe != nullptr)
+            return true;
     }
+    return false;
 }
 
 // CDC class control pipe requests
@@ -301,12 +277,12 @@ void USBHostCDC::sendData(uint8_t *data, size_t len)
 }
 
 // IN/OUT callbacks
-void USBHostCDC::onDataIn(usb_host_event_cb_t cb)
+void USBHostCDC::onDataIn(ext_usb_pipe_cb_t cb)
 {
     data_in = cb;
 }
 
-void USBHostCDC::onDataOut(usb_host_event_cb_t cb)
+void USBHostCDC::onDataOut(ext_usb_pipe_cb_t cb)
 {
     data_out = cb;
 }
@@ -324,3 +300,6 @@ void USBHostCDC::intrData()
     //     ESP_LOGW("", "INTR enqueue err: 0x%x", err);
     // }
 }
+
+USBH_WEAK_CB void usbh_cdc_device_ready(){}
+

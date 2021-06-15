@@ -2104,7 +2104,7 @@ static inline void _buffer_fill_intr(dma_buffer_block_t *buffer, usb_irp_t *irp,
         num_qtds = irp->num_bytes / mps;
     } else {
         num_qtds = irp->num_bytes / mps;    //Floor division for number of MPS packets
-        if (irp->num_bytes % irp->num_bytes > 0) {
+        if (irp->num_bytes % mps > 0) {
             num_qtds++; //For the last shot packet
         }
     }
